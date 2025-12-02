@@ -1,0 +1,13 @@
+{
+  "version": 3,
+  "configurePresets": [
+    {
+      "name": "gcc-release-vcpkg",
+      "inherits": "gcc-release",
+      "description": "Set CMAKE_TOOLCHAIN_FILE from VCPKG_ROOT for user-specific vcpkg toolchain",
+      "cacheVariables": {
+        "CMAKE_TOOLCHAIN_FILE": "/home/mfy/vcpkg/scripts/buildsystems/vcpkg.cmake"
+      }
+    }
+  ]
+}
