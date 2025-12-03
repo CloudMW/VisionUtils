@@ -53,7 +53,7 @@ namespace pcdl {
         }
 
         // 显式实例化 pcl::PointXYZI 类型的模板函数
-        template PCDL_VISUALIZATION_API
+        template
         bool showPointCloud<pcl::PointXYZI>(
             const pcl::PointCloud<pcl::PointXYZI>::ConstPtr &,
             const pcl::PointCloud<pcl::PointXYZI>::ConstPtr &,

@@ -2,7 +2,7 @@
 // Created by mfy on 2025/12/2.
 //
 
-#include "txt_io.h"
+#include "pcdl_io_txt.h"
 
 #include <string>
 #include <spdlog/spdlog.h>
@@ -12,7 +12,7 @@
 namespace pcdl {
     namespace io {
 
-        bool readTXTToPCLXYZI(const std::string& file_path, const typename pcl::PointCloud<pcl::PointXYZI>::Ptr& cloud)
+        bool readTXTToPCLXYZI(const std::string& file_path, const pcl::PointCloud<pcl::PointXYZI>::Ptr& cloud)
         {
             // 初始化点云
             cloud->clear();

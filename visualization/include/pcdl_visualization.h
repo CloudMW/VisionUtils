@@ -22,7 +22,7 @@ namespace pcdl
             const pcl::PointCloud<pcl::PointXYZI>::ConstPtr&,
             const std::string&);*/
       extern template
-          bool showPointCloud<pcl::PointXYZI>(
+      PCDL_VISUALIZATION_API    bool showPointCloud<pcl::PointXYZI>(
             const pcl::PointCloud<pcl::PointXYZI>::ConstPtr&,
             const pcl::PointCloud<pcl::PointXYZI>::ConstPtr&,
             const std::string&);

@@ -7,10 +7,12 @@ set(SUBSYS_DESC "Point cloud dock io library")
 set(LIB_NAME "pcdl_${SUBSYS_NAME}")
 include_directories(include)
 add_library(${LIB_NAME}  SHARED
-    src/txt_io.cpp
+        src/pcdl_io_txt.cpp
+        include/pcdl_io_txt_export.h
 )
 
-target_link_libraries(${LIB_NAME} PRIVATE
+
+target_link_libraries(${LIB_NAME}
     ${PCL_LIBRARIES}
     spdlog::spdlog
     ${OpenCV_LIBS}
@@ -19,7 +21,11 @@ target_link_libraries(${LIB_NAME} PRIVATE
 
 
 
-
+# 为target 设置 宏
+# 设置导出
+if(WIN32)
+    target_compile_definitions(${LIB_NAME} PRIVATE PCDL_IO_TXT_EXPORTS)
+endif()
 
 
 
@@ -31,6 +37,17 @@ target_link_libraries(${LIB_NAME} PRIVATE
 ## ----- install library ----- ##
 # 设置安装目标路径
 set(INSTALL_DIR "${CMAKE_SOURCE_DIR}/install")
+
+# 复制依赖的 DLL 到 install/lib 目录
+add_custom_command(TARGET ${LIB_NAME} POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E make_directory ${INSTALL_DIR}/lib/3rd
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        $<TARGET_RUNTIME_DLLS:${LIB_NAME}>
+        ${INSTALL_DIR}/lib/3rd/
+        COMMAND_EXPAND_LISTS
+        COMMENT "Copying dependent DLLs to install directory"
+)
+
 
 # 安装库文件
 install(TARGETS ${LIB_NAME}
