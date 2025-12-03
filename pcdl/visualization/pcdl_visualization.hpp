@@ -20,7 +20,7 @@ namespace pcdl
                 spdlog::error("[showPointCloud] 输入点云为空！");
                 return false;
             }
-
+            //11
             // 创建可视化对象
             pcl::visualization::PCLVisualizer viewer(window_name);
 
