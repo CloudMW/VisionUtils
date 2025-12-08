@@ -4,6 +4,7 @@
     {
       "name": "gcc-release-vcpkg",
       "inherits": "gcc-release",
+      "binaryDir": "${sourceDir}/build/gcc-release-vcpkg",
       "description": "Set CMAKE_TOOLCHAIN_FILE from VCPKG_ROOT for user-specific vcpkg toolchain",
       "cacheVariables": {
         "CMAKE_TOOLCHAIN_FILE": "/home/mfy/vcpkg/scripts/buildsystems/vcpkg.cmake"
@@ -12,6 +13,16 @@
     {
       "name": "msvc-release-vcpkg",
       "inherits": "msvc-release",
+      "binaryDir": "${sourceDir}/build/msvc-release-vcpkg",
+      "description": "Set CMAKE_TOOLCHAIN_FILE from VCPKG_ROOT for user-specific vcpkg toolchain",
+      "cacheVariables": {
+        "CMAKE_TOOLCHAIN_FILE": "d:/vcpkg/scripts/buildsystems/vcpkg.cmake"
+      }
+    },
+    {
+      "name": "msvc-debug-vcpkg",
+      "inherits": "msvc-debug",
+      "binaryDir": "${sourceDir}/build/msvc-debug-vcpkg",
       "description": "Set CMAKE_TOOLCHAIN_FILE from VCPKG_ROOT for user-specific vcpkg toolchain",
       "cacheVariables": {
         "CMAKE_TOOLCHAIN_FILE": "d:/vcpkg/scripts/buildsystems/vcpkg.cmake"

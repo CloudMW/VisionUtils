@@ -7,9 +7,108 @@
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
 #include <spdlog/spdlog.h>
+#include <iosfwd>
+#include <direct.h>
+#include <fstream>
+namespace pcdl
+{
+    namespace io
+    {
+        // ---- 生成当前时间：YYYYMMDD_HHMMSS ----
+        inline std::string getCurrentTimeString()
+        {
+            auto now = std::chrono::system_clock::now();
+            std::time_t t = std::chrono::system_clock::to_time_t(now);
+            std::tm tm;
+#ifdef _WIN32
+            localtime_s(&tm, &t);
+#else
+            localtime_r(&t, &tm);
+#endif
 
-namespace pcdl {
-    namespace io {
+            std::stringstream ss;
+            ss << std::put_time(&tm, "%Y%m%d_%H%M%S");
+            return ss.str();
+        }
+
+        // ---- 检查目录是否存在 ----
+        inline bool directoryExists(const std::string& path)
+        {
+            struct stat info;
+            return (stat(path.c_str(), &info) == 0 && (info.st_mode & S_IFDIR));
+        }
+
+        // ---- 创建目录（支持嵌套路径）----
+        inline bool createDirectoryRecursive(const std::string& path)
+        {
+            if (path.empty()) return false;
+            if (directoryExists(path)) return true;
+
+            std::string tmp;
+            for (size_t i = 0; i < path.size(); ++i)
+            {
+                tmp += path[i];
+
+                if (path[i] == '/' || path[i] == '\\')
+                {
+                    if (!tmp.empty() && !directoryExists(tmp))
+                    {
+#ifdef _WIN32
+                        if (_mkdir(tmp.c_str()) != 0) return false;
+#else
+                        if (mkdir(tmp.c_str(), 0755) != 0) return false;
+#endif
+                    }
+                }
+            }
+
+            // 创建最后一级
+            if (!directoryExists(tmp))
+            {
+#ifdef _WIN32
+                if (_mkdir(tmp.c_str()) != 0) return false;
+#else
+                if (mkdir(tmp.c_str(), 0755) != 0) return false;
+#endif
+            }
+            return true;
+        }
+
+        // ---- 保存点云为 TXT ----
+        template <typename PointT>
+        bool savePointCloudTXT(const typename pcl::PointCloud<PointT>::ConstPtr& input_pcd,
+                               const std::string& file_path)
+        {
+            // 创建目录（递归）
+            if (!createDirectoryRecursive(file_path))
+            {
+                std::cerr << "Failed to create directory: " << file_path << std::endl;
+                return false;
+            }
+
+#ifdef _WIN32
+            std::string filename = file_path + "\\" + getCurrentTimeString() + ".txt";
+#else
+            std::string filename = file_path + "/" + getCurrentTimeString() + ".txt";
+#endif
+
+            std::ofstream file(filename);
+            if (!file.is_open())
+            {
+                std::cerr << "Cannot open file: " << filename << std::endl;
+                return false;
+            }
+
+            for (const auto& p : input_pcd->points)
+            {
+                file << p.x << " " << p.y << " " << p.z << "\n";
+            }
+
+            file.close();
+            spdlog::info("Saved TXT point cloud: {}", filename);
+            return true;
+        }
+
 
         bool readTXTToPCLXYZI(const std::string& file_path, const pcl::PointCloud<pcl::PointXYZI>::Ptr& cloud)
         {
@@ -20,7 +119,7 @@ namespace pcdl {
             std::ifstream file(file_path);
             if (!file.is_open())
             {
-                spdlog::error("无法打开文件：{}", file_path);
+                spdlog::error("can't open:{}", file_path);
                 return false;
             }
 
@@ -35,9 +134,9 @@ namespace pcdl {
                 pcl::PointXYZI p;
 
                 // 解析 x y z（忽略多余空格/制表符）
-                if (!(ss >> p.x >> p.y >> p.z>>p.intensity))
+                if (!(ss >> p.x >> p.y >> p.z >> p.intensity))
                 {
-                    spdlog::warn("第 {} 行格式错误，跳过：{}", line_num, line);
+                    spdlog::warn("line {} format error ,skipp:{}", line_num, line);
                     continue;
                 }
 
@@ -54,10 +153,10 @@ namespace pcdl {
             // 验证读取结果
             if (cloud->empty())
             {
-                spdlog::error("点云数据为空，文件：{}", file_path);
+                spdlog::error("data is empty, file:{} ", file_path);
                 return false;
             }
-            spdlog::info("点云读取成功！文件：{}，点数：{}", file_path, cloud->size());
+            spdlog::info("open data success!file :{},point size:{}", file_path, cloud->size());
             return true;
         }
     } // io

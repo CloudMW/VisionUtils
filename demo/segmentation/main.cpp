@@ -5,8 +5,10 @@
 
 #include "pcdl/visualization/pcdl_visualization.hpp"
 #include "pcdl/io/pcdl_io_txt.hpp"
+#include "pcdl/segmentation/pcdl_clusters.hpp"
 #include "spdlog/spdlog.h"
 
+typedef  pcl::PointXYZI PointT;
 int main() {
     std::string file_1 = std::string(DEMO_PATH) + "/data/1.txt";
     std::string file_2 = std::string(DEMO_PATH) + "/data/2.txt";
@@ -18,22 +20,17 @@ int main() {
 
     if (pcdl::io::readTXTToPCLXYZI(file_1,cloud_1)&&pcdl::io::readTXTToPCLXYZI(file_2,cloud_2)) {
 
-        // showPointCloud
+        // clusters
         {
-           // pcdl::visualization::showPointCloud<pcl::PointXYZI>(cloud_1,cloud_2,"cloud_1&cloud_2");
-        }
+            {
+                //euclideanClustering
+                std::vector<pcl::PointCloud<PointT>::Ptr> clusters;
+                auto cloudRGB = std::make_shared<pcl::PointCloud<pcl::PointXYZRGB> >();
 
-
-        //
-        {
-            //variadic templates showPointCloud
-           pcdl::visualization::showPointCloud<pcl::PointXYZI>("variadic templates showPointCloud",cloud_1,cloud_2);
-        }
-        //showAABB
-        {
-            pcl::PointXYZI min_pt, max_pt;
-            pcl::getMinMax3D(*cloud_1, min_pt, max_pt);
-            pcdl::visualization::showAABB<pcl::PointXYZI>(cloud_1,min_pt,max_pt,"cloud_1&cloud_2");
+                pcdl::segmentation::euclideanClustering<PointT>(cloud_2, clusters, cloudRGB,10 ,10 ,100000);
+                spdlog::info("clusters size: {}",clusters.size());
+                pcdl::visualization::showPointCloud<pcl::PointXYZRGB>("clusters", cloudRGB);
+            }
         }
 
     }

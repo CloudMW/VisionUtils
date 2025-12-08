@@ -18,7 +18,6 @@
       "hidden": true,
       "inherits": "base",
       "generator": "Ninja",
-      "binaryDir": "${sourceDir}/build/gcc",
       "cacheVariables": {
         "CMAKE_C_COMPILER": "gcc",
         "CMAKE_CXX_COMPILER": "g++"
@@ -29,7 +28,6 @@
       "hidden": true,
       "inherits": "base",
       "generator": "Ninja",
-      "binaryDir": "${sourceDir}/build/msvc",
       "cacheVariables": {
         "CMAKE_C_COMPILER": "cl.exe",
         "CMAKE_CXX_COMPILER": "cl.exe"
