@@ -1,6 +1,3 @@
+add_subdirectory(common_utils)
+add_subdirectory(pcl_utils)
 add_subdirectory(demo_XX)
-
-add_subdirectory(visualization)
-add_subdirectory(debug)
-add_subdirectory(segmentation)
-

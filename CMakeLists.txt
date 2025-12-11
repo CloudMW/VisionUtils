@@ -11,7 +11,12 @@ find_package(OpenCV CONFIG OPTIONAL_COMPONENTS)
 include_directories(${OpenCV_INCLUDE_DIRS})
 find_package(spdlog CONFIG REQUIRED)
 
+##--------- # include directories #---------##
+include_directories(pcl_utils)
+include_directories(common_utils)
+include_directories(cv_utils)
 ##----------# add subdirectories #----------##
+
 add_subdirectory(demo)
 
 
