@@ -9,7 +9,10 @@
 #include <pcl/point_cloud.h>
 #include <vtkTextActor.h>
 #include <vtkSmartPointer.h>
+#include <vtkParametricTorus.h>
+#include <vtkParametricFunctionSource.h>
 #include <map>
+#include <set>
 #include <string>
 #include <memory>
 #include <any>
@@ -45,6 +48,15 @@ namespace pcl_utils {
             std::map<std::string, std::any> color_handlers_; // 存储颜色处理器
             bool is_initialized_ = false; // 标记是否已初始化
             std::vector<vtkSmartPointer<vtkTextActor> > text_actors_; // 保存文本 actors
+            std::set<std::string> shape_ids_; // 保存几何形状 ID
+
+            // 几何形状持久化存储
+            struct ShapeData {
+                std::string type; // "sphere", "cube", "cylinder", "plane", "torus", "arrow", "text3d", "text"
+                std::any data; // 存储形状的参数
+            };
+
+            std::map<std::string, ShapeData> shapes_; // 保存形状数据用于持久化
 
             /**
              * @brief 初始化可视化界面
@@ -177,6 +189,67 @@ namespace pcl_utils {
 
                     viewer_->setPointCloudRenderingProperties(
                         pcl::visualization::PCL_VISUALIZER_POINT_SIZE, point_size, cloud_id);
+                }
+
+                // 重新添加所有几何形状
+                for (const auto &[shape_id, shape_data]: shapes_) {
+                    if (shape_data.type == "sphere") {
+                        auto params = std::any_cast<std::tuple<pcl::PointXYZ, double, int, int, int> >(shape_data.data);
+                        viewer_->addSphere(std::get<0>(params), std::get<1>(params),
+                                           std::get<2>(params) / 255.0, std::get<3>(params) / 255.0,
+                                           std::get<4>(params) / 255.0, shape_id);
+                    } else if (shape_data.type == "cube") {
+                        auto params = std::any_cast<std::tuple<double, double, double, double, double, double, int, int,
+                            int> >(shape_data.data);
+                        viewer_->addCube(std::get<0>(params), std::get<1>(params), std::get<2>(params),
+                                         std::get<3>(params), std::get<4>(params), std::get<5>(params),
+                                         std::get<6>(params) / 255.0, std::get<7>(params) / 255.0,
+                                         std::get<8>(params) / 255.0, shape_id);
+                    } else if (shape_data.type == "cylinder") {
+                        auto params = std::any_cast<std::tuple<pcl::ModelCoefficients, int, int,
+                            int> >(shape_data.data);
+                        viewer_->addCylinder(std::get<0>(params), shape_id);
+                        viewer_->setShapeRenderingProperties(pcl::visualization::PCL_VISUALIZER_COLOR,
+                                                             std::get<1>(params) / 255.0, std::get<2>(params) / 255.0,
+                                                             std::get<3>(params) / 255.0, shape_id);
+                    } else if (shape_data.type == "plane") {
+                        auto params = std::any_cast<std::tuple<pcl::ModelCoefficients, int, int,
+                            int> >(shape_data.data);
+                        viewer_->addPlane(std::get<0>(params), shape_id);
+                        viewer_->setShapeRenderingProperties(pcl::visualization::PCL_VISUALIZER_COLOR,
+                                                             std::get<1>(params) / 255.0, std::get<2>(params) / 255.0,
+                                                             std::get<3>(params) / 255.0, shape_id);
+                    } else if (shape_data.type == "torus") {
+                        auto params = std::any_cast<std::tuple<double, double, int, int, int> >(shape_data.data);
+                        auto torus = vtkSmartPointer<vtkParametricTorus>::New();
+                        torus->SetRingRadius(std::get<0>(params));
+                        torus->SetCrossSectionRadius(std::get<1>(params));
+                        auto torusSource = vtkSmartPointer<vtkParametricFunctionSource>::New();
+                        torusSource->SetParametricFunction(torus);
+                        torusSource->Update();
+                        viewer_->addModelFromPolyData(torusSource->GetOutput(), shape_id);
+                        viewer_->setShapeRenderingProperties(pcl::visualization::PCL_VISUALIZER_COLOR,
+                                                             std::get<2>(params) / 255.0, std::get<3>(params) / 255.0,
+                                                             std::get<4>(params) / 255.0, shape_id);
+                    } else if (shape_data.type == "arrow") {
+                        auto params = std::any_cast<std::tuple<pcl::PointXYZ, pcl::PointXYZ, int, int, int, bool> >(
+                            shape_data.data);
+                        viewer_->addArrow(std::get<1>(params), std::get<0>(params),
+                                          std::get<2>(params) / 255.0, std::get<3>(params) / 255.0,
+                                          std::get<4>(params) / 255.0,
+                                          std::get<5>(params), shape_id);
+                    } else if (shape_data.type == "text3d") {
+                        auto params = std::any_cast<std::tuple<std::string, pcl::PointXYZ, double, double, double,
+                            double> >(shape_data.data);
+                        viewer_->addText3D(std::get<0>(params), std::get<1>(params), std::get<2>(params),
+                                           std::get<3>(params), std::get<4>(params), std::get<5>(params), shape_id);
+                    } else if (shape_data.type == "text") {
+                        auto params = std::any_cast<std::tuple<std::string, int, int, int, double, double, double> >(
+                            shape_data.data);
+                        viewer_->addText(std::get<0>(params), std::get<1>(params), std::get<2>(params),
+                                         std::get<3>(params),
+                                         std::get<4>(params), std::get<5>(params), std::get<6>(params), shape_id);
+                    }
                 }
 
                 is_initialized_ = false;
@@ -315,6 +388,270 @@ namespace pcl_utils {
                 } else {
                     viewer_->removePointCloud(id);
                 }
+            }
+
+            // ==================== 几何形状管理方法 ====================
+
+            /**
+             * @brief 添加球体
+             * @param id 球体标识符
+             * @param center 球心坐标
+             * @param radius 半径
+             * @param r 红色分量 (0-255)
+             * @param g 绿色分量 (0-255)
+             * @param b 蓝色分量 (0-255)
+             */
+            void addSphere(const std::string &id, const pcl::PointXYZ &center, double radius,
+                           int r = 255, int g = 0, int b = 0) {
+                if (shape_ids_.count(id)) {
+                    std::cerr << "警告: 形状 ID '" << id << "' 已存在" << std::endl;
+                    return;
+                }
+                viewer_->addSphere(center, radius, r / 255.0, g / 255.0, b / 255.0, id);
+                shape_ids_.insert(id);
+
+                // 保存形状数据用于持久化
+                ShapeData shape_data;
+                shape_data.type = "sphere";
+                shape_data.data = std::make_tuple(center, radius, r, g, b);
+                shapes_[id] = shape_data;
+            }
+
+            /**
+             * @brief 添加立方体
+             * @param id 立方体标识符
+             * @param x_min X轴最小值
+             * @param x_max X轴最大值
+             * @param y_min Y轴最小值
+             * @param y_max Y轴最大值
+             * @param z_min Z轴最小值
+             * @param z_max Z轴最大值
+             * @param r 红色分量 (0-255)
+             * @param g 绿色分量 (0-255)
+             * @param b 蓝色分量 (0-255)
+             */
+            void addCube(const std::string &id,
+                         double x_min, double x_max,
+                         double y_min, double y_max,
+                         double z_min, double z_max,
+                         int r = 0, int g = 255, int b = 0) {
+                if (shape_ids_.count(id)) {
+                    std::cerr << "警告: 形状 ID '" << id << "' 已存在" << std::endl;
+                    return;
+                }
+                viewer_->addCube(x_min, x_max, y_min, y_max, z_min, z_max,
+                                 r / 255.0, g / 255.0, b / 255.0, id);
+                shape_ids_.insert(id);
+
+                // 保存形状数据用于持久化
+                ShapeData shape_data;
+                shape_data.type = "cube";
+                shape_data.data = std::make_tuple(x_min, x_max, y_min, y_max, z_min, z_max, r, g, b);
+                shapes_[id] = shape_data;
+            }
+
+            /**
+             * @brief 添加圆柱体
+             * @param id 圆柱体标识符
+             * @param coefficients 圆柱体参数 (point_on_axis.x, point_on_axis.y, point_on_axis.z,
+             *                                 axis_direction.x, axis_direction.y, axis_direction.z, radius)
+             * @param r 红色分量 (0-255)
+             * @param g 绿色分量 (0-255)
+             * @param b 蓝色分量 (0-255)
+             */
+            void addCylinder(const std::string &id, const pcl::ModelCoefficients &coefficients,
+                             int r = 0, int g = 0, int b = 255) {
+                if (shape_ids_.count(id)) {
+                    std::cerr << "警告: 形状 ID '" << id << "' 已存在" << std::endl;
+                    return;
+                }
+                viewer_->addCylinder(coefficients, id);
+                viewer_->setShapeRenderingProperties(
+                    pcl::visualization::PCL_VISUALIZER_COLOR, r / 255.0, g / 255.0, b / 255.0, id);
+                shape_ids_.insert(id);
+
+                // 保存形状数据用于持久化
+                ShapeData shape_data;
+                shape_data.type = "cylinder";
+                shape_data.data = std::make_tuple(coefficients, r, g, b);
+                shapes_[id] = shape_data;
+            }
+
+            /**
+             * @brief 添加平面
+             * @param id 平面标识符
+             * @param coefficients 平面参数 (a, b, c, d) 表示平面方程 ax+by+cz+d=0
+             * @param r 红色分量 (0-255)
+             * @param g 绿色分量 (0-255)
+             * @param b 蓝色分量 (0-255)
+             */
+            void addPlane(const std::string &id, const pcl::ModelCoefficients &coefficients,
+                          int r = 128, int g = 128, int b = 128) {
+                if (shape_ids_.count(id)) {
+                    std::cerr << "警告: 形状 ID '" << id << "' 已存在" << std::endl;
+                    return;
+                }
+                viewer_->addPlane(coefficients, id);
+                viewer_->setShapeRenderingProperties(
+                    pcl::visualization::PCL_VISUALIZER_COLOR, r / 255.0, g / 255.0, b / 255.0, id);
+                shape_ids_.insert(id);
+
+                // 保存形状数据用于持久化
+                ShapeData shape_data;
+                shape_data.type = "plane";
+                shape_data.data = std::make_tuple(coefficients, r, g, b);
+                shapes_[id] = shape_data;
+            }
+
+            /**
+             * @brief 添加圆环（Torus）
+             * @param id 圆环标识符
+             * @param ring_radius 环的半径
+             * @param cross_section_radius 截面半径
+             * @param r 红色分量 (0-255)
+             * @param g 绿色分量 (0-255)
+             * @param b 蓝色分量 (0-255)
+             */
+            void addTorus(const std::string &id, double ring_radius = 1.0,
+                          double cross_section_radius = 0.2,
+                          int r = 255, int g = 128, int b = 0) {
+                if (shape_ids_.count(id)) {
+                    std::cerr << "警告: 形状 ID '" << id << "' 已存在" << std::endl;
+                    return;
+                }
+
+                // 创建圆环参数化表面
+                auto torus = vtkSmartPointer<vtkParametricTorus>::New();
+                torus->SetRingRadius(ring_radius);
+                torus->SetCrossSectionRadius(cross_section_radius);
+
+                auto torusSource = vtkSmartPointer<vtkParametricFunctionSource>::New();
+                torusSource->SetParametricFunction(torus);
+                torusSource->Update();
+
+                viewer_->addModelFromPolyData(torusSource->GetOutput(), id);
+                viewer_->setShapeRenderingProperties(
+                    pcl::visualization::PCL_VISUALIZER_COLOR, r / 255.0, g / 255.0, b / 255.0, id);
+                shape_ids_.insert(id);
+
+                // 保存形状数据用于持久化
+                ShapeData shape_data;
+                shape_data.type = "torus";
+                shape_data.data = std::make_tuple(ring_radius, cross_section_radius, r, g, b);
+                shapes_[id] = shape_data;
+            }
+
+            /**
+             * @brief 添加箭头
+             * @param id 箭头标识符
+             * @param pt_start 起点
+             * @param pt_end 终点
+             * @param r 红色分量 (0-255)
+             * @param g 绿色分量 (0-255)
+             * @param b 蓝色分量 (0-255)
+             * @param display_length 是否显示长度标注
+             */
+            void addArrow(const std::string &id,
+                          const pcl::PointXYZ &pt_start,
+                          const pcl::PointXYZ &pt_end,
+                          int r = 255, int g = 255, int b = 0,
+                          bool display_length = false) {
+                if (shape_ids_.count(id)) {
+                    std::cerr << "警告: 形状 ID '" << id << "' 已存在" << std::endl;
+                    return;
+                }
+                viewer_->addArrow(pt_end, pt_start, r / 255.0, g / 255.0, b / 255.0, display_length, id);
+                shape_ids_.insert(id);
+
+                // 保存形状数据用于持久化
+                ShapeData shape_data;
+                shape_data.type = "arrow";
+                shape_data.data = std::make_tuple(pt_start, pt_end, r, g, b, display_length);
+                shapes_[id] = shape_data;
+            }
+
+            /**
+             * @brief 添加3D文本
+             * @param id 文本标识符
+             * @param text 文本内容
+             * @param position 3D位置
+             * @param text_scale 文本缩放
+             * @param r 红色分量 (0-1)
+             * @param g 绿色分量 (0-1)
+             * @param b 蓝色分量 (0-1)
+             */
+            void addText3D(const std::string &id,
+                           const std::string &text,
+                           const pcl::PointXYZ &position,
+                           double text_scale = 0.1,
+                           double r = 1.0, double g = 1.0, double b = 1.0) {
+                if (shape_ids_.count(id)) {
+                    std::cerr << "警告: 形状 ID '" << id << "' 已存在" << std::endl;
+                    return;
+                }
+                viewer_->addText3D(text, position, text_scale, r, g, b, id);
+                shape_ids_.insert(id);
+
+                // 保存形状数据用于持久化
+                ShapeData shape_data;
+                shape_data.type = "text3d";
+                shape_data.data = std::make_tuple(text, position, text_scale, r, g, b);
+                shapes_[id] = shape_data;
+            }
+
+            /**
+             * @brief 添加2D屏幕文本
+             * @param id 文本标识符
+             * @param text 文本内容
+             * @param x 屏幕X坐标 (像素)
+             * @param y 屏幕Y坐标 (像素)
+             * @param font_size 字体大小
+             * @param r 红色分量 (0-1)
+             * @param g 绿色分量 (0-1)
+             * @param b 蓝色分量 (0-1)
+             */
+            void addText(const std::string &id,
+                         const std::string &text,
+                         int x, int y,
+                         int font_size = 14,
+                         double r = 1.0, double g = 1.0, double b = 1.0) {
+                if (shape_ids_.count(id)) {
+                    std::cerr << "警告: 形状 ID '" << id << "' 已存在" << std::endl;
+                    return;
+                }
+                viewer_->addText(text, x, y, font_size, r, g, b, id);
+                shape_ids_.insert(id);
+
+                // 保存形状数据用于持久化
+                ShapeData shape_data;
+                shape_data.type = "text";
+                shape_data.data = std::make_tuple(text, x, y, font_size, r, g, b);
+                shapes_[id] = shape_data;
+            }
+
+            /**
+             * @brief 删除几何形状
+             * @param id 形状标识符
+             */
+            void removeShape(const std::string &id) {
+                if (!shape_ids_.count(id)) {
+                    std::cerr << "警告: 形状 ID '" << id << "' 不存在" << std::endl;
+                    return;
+                }
+                viewer_->removeShape(id);
+                shape_ids_.erase(id);
+                shapes_.erase(id); // 同时删除持久化数据
+            }
+
+            /**
+             * @brief 删除所有几何形状
+             */
+            void removeAllShapes() {
+                for (const auto &id: shape_ids_) {
+                    viewer_->removeShape(id);
+                }
+                shape_ids_.clear();
+                shapes_.clear(); // 同时清除所有持久化数据
             }
 
 

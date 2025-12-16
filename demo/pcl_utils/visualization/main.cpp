@@ -87,4 +87,15 @@ void pcl_utils_vis_container(
     container.toggleVisibility("xyz_cloud");
     container.removePointCloud("xyzi_cloud");
     container.show();
+
+
+
+    // 添加球体
+    pcl::PointXYZ sphere_center(0.0f, 0.0f, 0.0f);
+    container.addSphere("sphere1", sphere_center, 1000, 255, 0, 0);
+    std::cout << "✓ 添加了红色球体\n";
+    container.show();
+    //移除球体
+    container.removeShape("sphere1");
+    container.show();
 }
