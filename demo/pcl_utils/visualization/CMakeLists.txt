@@ -1,6 +1,6 @@
 
 
-set(SUBSYS_NAME demo_vis)
+set(SUBSYS_NAME demo_pcl_utils_vis)
 
 add_executable(${SUBSYS_NAME})
 
