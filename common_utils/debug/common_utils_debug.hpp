@@ -6,6 +6,17 @@
 #define POINTCLOUDDOCKLIB_DEBUG_HPP
 #include <functional>
 
+/*!
+ * @brief common_utils命名空间下的debug工具
+ *
+ * @code
+ * common_utils::DebugConfig::setVisDebugLevel((common_utils::DebugLevel)1);
+ * common_utils::DebugConfig::setVisDebugLevel(common_utils::DebugLevel::PROCESS);
+ * common_utils::debug_exec_vis(common_utils::DebugLevel::VERBOSE, []() {
+ *    spdlog::info("详细信息：点云数量={}", cloud->size);
+ *    });
+ *  @endcode
+ */
 namespace common_utils {
     /**
      * @brief Debug等级定义
@@ -89,14 +100,14 @@ namespace common_utils {
      * });
      */
     template<typename Func>
-    inline void debug_exec_vis(DebugLevel required_level, Func &&f) {
+    void debug_exec_vis(DebugLevel required_level, Func &&f) {
         if (DebugConfig::shouldExecuteVis(required_level)) {
             std::invoke(std::forward<Func>(f));
         }
     }
 
     template<typename Func>
-    inline void debug_exec_log(DebugLevel required_level, Func &&f) {
+    void debug_exec_log(DebugLevel required_level, Func &&f) {
         if (DebugConfig::shouldExecuteLog(required_level)) {
             std::invoke(std::forward<Func>(f));
         }
