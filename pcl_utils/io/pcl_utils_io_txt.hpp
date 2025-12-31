@@ -9,6 +9,8 @@
 #include <spdlog/spdlog.h>
 #include <iosfwd>
 #include <fstream>
+#include <iomanip>
+#include <sys/stat.h>
 #ifdef _WIN32
 #include <direct.h>
 #endif
